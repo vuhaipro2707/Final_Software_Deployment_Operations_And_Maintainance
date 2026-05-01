@@ -1,0 +1,120 @@
+---
+
+- name: Prepare K8s Cluster
+  hosts: k8s_cluster
+  become: yes         # Quyền sudo cho các tác vụ cài đặt
+  gather_facts: yes    # Bây giờ mới lấy thông tin hệ điều hành
+
+  tasks:
+    - name: Set Hostname based on Inventory Name
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Update apt and install dependencies
+      apt:
+        update_cache: yes
+        name: [apt-transport-https, ca-certificates, curl, gnupg, lsb-release]
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
+        state: present
+
+    - name: Install Containerd (The Runtime)
+      apt:
+        name: containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Enable kernel modules for K8s (Permanent)
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: Enable kernel modules for K8s (Permanent on Reboot)
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: |
+          overlay
+          br_netfilter
+
+    - name: Load kernel modules immediately
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+
+    - name: Configure sysctl for K8s network (Permanent on Reboot)
+      copy:
+        dest: /etc/sysctl.d/k8s.conf
+        content: |
+          net.bridge.bridge-nf-call-iptables  = 1
+          net.bridge.bridge-nf-call-ip6tables = 1
+          net.ipv4.ip_forward                 = 1
+
+    - name: Apply sysctl settings immediately
+      command: sysctl --system
+
+    - name: Check if containerd config is already optimized
+      shell: grep "SystemdCgroup = true" /etc/containerd/config.toml
+      register: cgroup_check
+      failed_when: false
+      changed_when: false
+
+    - name: Configure containerd for K8s
+      shell: |
+        mkdir -p /etc/containerd
+        containerd config default > /etc/containerd/config.toml
+        sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+      when: cgroup_check.rc != 0
+      notify: restart containerd
+
+    - name: Add Kubernetes apt key
+      apt_key:
+        url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+        state: present
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: deb https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /
+        state: present
+
+    - name: Install K8s tools
+      apt:
+        name: [kubelet, kubeadm, kubectl]
+        state: present
+        update_cache: yes
+
+    - name: Hold K8s tools version
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop: [kubelet, kubeadm, kubectl]
+
+    - name: Enable and Start K8s services
+      service:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      loop: [containerd, kubelet]
+
+    - name: Install Helm for K8s extensions
+      shell: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+
+  handlers:
+    - name: restart containerd
+      service:
+        name: containerd
+        state: restarted

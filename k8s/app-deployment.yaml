@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejs-app
+  labels:
+    app: nodejs-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nodejs-app
+  template:
+    metadata:
+      labels:
+        app: nodejs-app
+    spec:
+      containers:
+        - name: nodejs-container
+          image: vuhaipro2707/final-app:v1.0.09
+          resources: 
+            requests:
+              cpu: "50m"
+              memory: "100Mi"
+            limits:
+              cpu: "200m"
+              memory: "200Mi"
+          ports:
+            - containerPort: 3000
+              name: http
+            - containerPort: 3000
+              name: metrics
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: PORT
+              value: "3000"
+            - name: MONGO_URI
+              value: "mongodb://mongodb-service:27017/products_db?replicaSet=rs0&readPreference=secondaryPreferred"
+            - name: NODE_ENV
+              value: "production"
+            - name: S3_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: s3-credentials
+                  key: S3_BUCKET_NAME
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: s3-credentials
+                  key: AWS_REGION
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-service
+spec:
+  type: LoadBalancer # Hoặc NodePort tùy hạ tầng
+  selector:
+    app: nodejs-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000

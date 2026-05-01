@@ -1,0 +1,181 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  nodejs-dashboard.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "id": null,
+      "templating": {
+        "list": [
+          {
+            "name": "node",
+            "type": "query",
+            "query": "label_values(up{job=\"kubernetes-nodes\"}, instance)",
+            "refresh": 1
+          },
+          {
+            "name": "pod",
+            "type": "query",
+            "query": "label_values(container_cpu_usage_seconds_total{instance=~\"$node\"}, pod)",
+            "refresh": 1,
+            "multi": true,
+            "includeAll": true
+          }
+        ]
+      },
+      "panels": [
+        {
+          "title": "Node Status",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
+          "targets": [
+            { "expr": "sum(up{job=\"kubernetes-nodes\"})", "legendFormat": "K8s Nodes", "refId": "A" },
+            { "expr": "sum(up{job=\"mongodb\"})", "legendFormat": "MongoDB Pods", "refId": "B" },
+            { "expr": "sum(up{job=\"nodejs-app\"})", "legendFormat": "App Pods", "refId": "C" }
+          ],
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "center",
+            "orientation": "vertical",
+            "textMode": "value_and_name"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "title": "CPU Usage per Pod on $node",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "targets": [
+            { "expr": "sum(rate(container_cpu_usage_seconds_total{instance=~\"$node\", pod=~\"$pod\", container!=\"\"}[5m])) by (pod)", "legendFormat": "{{pod}}", "refId": "A" }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "percentunit" }
+          }
+        },
+        {
+          "title": "Memory Usage per Pod on $node",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "targets": [
+            { "expr": "sum(container_memory_working_set_bytes{instance=~\"$node\", pod=~\"$pod\", container!=\"\"}) by (pod)", "legendFormat": "{{pod}}", "refId": "A" }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "bytes" }
+          }
+        },
+        {
+          "title": "App Request Rate (Custom Metric)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+          "targets": [
+            { "expr": "sum(rate(http_request_duration_seconds_count{job=\"nodejs-app\"}[5m])) by (kubernetes_pod_name)", "legendFormat": "{{kubernetes_pod_name}}", "refId": "A" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps"
+            }
+          }
+        },
+        {
+          "title": "MongoDB Health Status",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 24, "x": 0, "y": 20 },
+          "targets": [
+            { "expr": "mongodb_up", "refId": "A", "legendFormat": "Pod {{instance}}" }
+          ],
+          "options": {
+            "textMode": "value_and_name",
+            "colorMode": "background",
+            "graphMode": "none",
+            "justifyMode": "center",
+            "orientation": "horizontal"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              },
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "index": 0 }, "1": { "text": "ONLINE", "index": 1 } } }
+              ]
+            }
+          }
+        }
+      ],
+      "title": "Final Project - Full Stack Observability",
+      "time": {
+        "from": "now-15m",
+        "to": "now"
+      },
+      "uid": "final-project-obs",
+      "version": 2
+    }
+        {
+          "title": "HTTP Request Rate (Custom Metric)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+          "targets": [
+            { "expr": "rate(http_request_duration_seconds_count{kubernetes_pod_name=~\"$pod\"}[5m])", "refId": "A" }
+          ]
+        }
+      ],
+      "title": "Infrastructure & App Overview",
+      "uid": "infra-app-overview",
+      "version": 1
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitoring
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+    - name: Prometheus
+      type: prometheus
+      url: http://prometheus-service.monitoring.svc.cluster.local/prometheus
+      access: proxy
+      isDefault: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: monitoring
+data:
+  provider.yaml: |
+    apiVersion: 1
+    providers:
+    - name: 'default'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      editable: true
+      options:
+        path: /var/lib/grafana/dashboards

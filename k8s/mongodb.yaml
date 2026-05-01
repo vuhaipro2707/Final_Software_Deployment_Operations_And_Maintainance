@@ -1,0 +1,148 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb
+spec:
+  serviceName: "mongodb-service"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - mongodb
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: mongodb
+        image: mongo:6.0
+        command:
+          - "sh"
+          - "-c"
+          - |
+            # Khởi động mongod ở background
+            mongod --replSet rs0 --bind_ip_all &
+            
+            # Đợi Mongo local sẵn sàng
+            until mongosh --eval "db.adminCommand('ping')" > /dev/null 2>&1; do 
+              sleep 2
+            done
+
+            POD_ID=${HOSTNAME##*-}
+            NODES="mongodb-0.mongodb-service:27017,mongodb-1.mongodb-service:27017,mongodb-2.mongodb-service:27017"
+
+            # Tìm kiếm xem ai đang là PRIMARY trong cụm (sử dụng IP nếu DNS chưa lên)
+            find_primary() {
+              for node in $(echo $NODES | tr ',' ' '); do
+                if mongosh --host "$node" --eval "db.isMaster().ismaster" 2>/dev/null | grep -q "true"; then
+                  echo "$node"
+                  return 0
+                fi
+              done
+              return 1
+            }
+
+            # Thuật toán tự động gia nhập
+            PRIMARY=$(find_primary)
+
+            # Kiểm tra xem đã có dữ liệu khởi tạo trên đĩa chưa
+            HAS_CONFIG=$(mongosh --quiet --eval "rs.status().ok" 2>/dev/null || echo "0")
+
+            if [ -n "$PRIMARY" ]; then
+              echo "Found PRIMARY at $PRIMARY. Checking if I need to join..."
+              # Nếu đã có PRIMARY, tuyệt đối không tự initiate, chỉ join
+              if mongosh --host "$PRIMARY" --quiet --eval "rs.status().ok" | grep -q "1"; then
+                if mongosh --host "$PRIMARY" --quiet --eval "rs.conf().members.map(m => m.host).includes('$(hostname).mongodb-service:27017')" | grep -q "true"; then
+                  echo "I am already in the replica set config. Waiting for sync..."
+                else
+                  echo "I am NOT in the config. Requesting PRIMARY to add me..."
+                  mongosh --host "$PRIMARY" --eval "rs.add('$(hostname).mongodb-service:27017')" || true
+                fi
+              fi
+            else
+              # Chỉ initiate nếu là node 0 VÀ không tìm thấy bất kỳ PRIMARY nào khác trong cụm
+              if [ "$POD_ID" = "0" ] && [ "$HAS_CONFIG" != "1" ]; then
+                echo "No PRIMARY found in cluster and no local config. I am mongodb-0, initiating cluster..."
+                # Sử dụng DNS name ngay từ đầu thay vì localhost
+                mongosh --eval "rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongodb-0.mongodb-service:27017'}]})"
+                
+                until mongosh --eval "db.isMaster().ismaster" | grep -q "true"; do sleep 2; done
+                
+                echo "Adding other members..."
+                mongosh --eval "rs.add('mongodb-1.mongodb-service:27017'); rs.add('mongodb-2.mongodb-service:27017');" || true
+              else
+                echo "Waiting for PRIMARY (Local config exists or not pod-0)..."
+                until PRIMARY=$(find_primary); do
+                  sleep 5
+                  echo "Still waiting for PRIMARY to avoid split-brain..."
+                done
+                echo "PRIMARY found at $PRIMARY. Joining now..."
+                mongosh --host "$PRIMARY" --eval "rs.add('$(hostname).mongodb-service:27017')" || true
+              fi
+            fi
+            
+            # Giữ container chạy
+            wait
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "200Mi"
+          limits:
+            cpu: "500m"
+            memory: "400Mi"
+        ports:
+        - containerPort: 27017
+      - name: mongodb-exporter
+        image: bitnami/mongodb-exporter:latest
+        env:
+          - name: MONGODB_URI
+            value: "mongodb://localhost:27017"
+          - name: MONGO_INITDB_DATABASE
+            value: "products_db"
+        ports:
+          - containerPort: 9216
+            name: metrics
+        resources:
+          requests:
+            cpu: "20m"
+            memory: "50Mi"
+          limits:
+            cpu: "50m"
+            memory: "100Mi"
+        volumeMounts:
+        - name: mongo-data
+          mountPath: /data/db
+  volumeClaimTemplates:
+  - metadata:
+      name: mongo-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "gp3" 
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  clusterIP: None # Headless service cho StatefulSet
+  selector:
+    app: mongodb
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
