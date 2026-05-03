@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node main.js",
     "dev": "nodemon main.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "eslint .",
+    "test": "mocha --recursive",
+    "build": "echo 'No build step required for Node.js'"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +26,9 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.20"
+    "nodemon": "^2.0.20",
+    "eslint": "^8.x.x",
+    "eslint-plugin-node": "^11.x.x",
+    "mocha": "^10.x.x"
   }
 }
