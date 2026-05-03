@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4[cite: 1]
+        uses: actions/checkout@v4
 
       - name: Setup Node.js & Cache
         uses: actions/setup-node@v4
@@ -20,7 +20,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: cd app && npm install[cite: 2]
+        run: cd app && npm install
 
       - name: Run Linting
         run: cd app && npm run lint
