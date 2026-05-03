@@ -1,8 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
 const ProductModel = require('../models/product');
-const mongoose = require('mongoose');
-const fs = require('fs').promises;
-const path = require('path');
 const s3Service = require('./s3Service');
 
 let inMemory = [];
