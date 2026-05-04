@@ -77,7 +77,8 @@ jobs:
 
       - name: Update Deployment Image
         run: |
-          sed -i "s|image: .*final-project:.*|image: ${{ secrets.DOCKER_HUB_USERNAME }}/final-project:${{ github.sha }}|g" k8s/app-deployment.yaml
+          # Use vars for username to avoid empty prefix
+          sed -i "s|image: .*|image: ${{ vars.DOCKER_HUB_USERNAME }}/final-project:${{ github.sha }}|g" k8s/app-deployment.yaml
 
       - name: Deploy to Kubernetes
         run: |
