@@ -85,7 +85,6 @@ aws configure # Fill in Access Key, Secret Key, Region (e.g., us-east-1), output
    ```
 
 5. **Verify Status:**
-   
    ```bash
    # Wait for all Certificates to be issued (Let's Encrypt)
    kubectl wait --for=condition=Ready certificate --all -A --timeout=300s
