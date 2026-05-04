@@ -85,8 +85,8 @@ jobs:
 
       - name: Force Refresh Pods
         run: |
-          kubectl rollout restart deployment/app-deployment
+          kubectl rollout restart deployment/nodejs-app
 
       - name: Verify Deployment
         run: |
-          kubectl rollout status deployment/app-deployment --timeout=120s
+          kubectl rollout status deployment/nodejs-app --timeout=120s
