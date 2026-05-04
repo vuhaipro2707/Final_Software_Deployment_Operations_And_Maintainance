@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: nodejs-container
-          image: vuhaipro2707/final-app:v1.0.09
+          image: ${DOCKER_IMAGE}
           resources: 
             requests:
               cpu: "50m"

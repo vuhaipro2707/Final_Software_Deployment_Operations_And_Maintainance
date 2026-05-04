@@ -79,7 +79,12 @@ echo "Step 4: Deploying MongoDB HA (3 Nodes)..."
 kubectl apply -f k8s/mongodb.yaml
 
 echo "Step 5: Deploying Application & HPA..."
-kubectl apply -f k8s/app-deployment.yaml
+if [ -f ".env" ]; then
+    export $(grep -v '^#' .env | xargs)
+    envsubst < k8s/app-deployment.yaml | kubectl apply -f -
+else
+    kubectl apply -f k8s/app-deployment.yaml
+fi
 kubectl apply -f k8s/hpa.yaml
 
 echo "Step 6: Configuring Ingress (Path-based Routing)..."
