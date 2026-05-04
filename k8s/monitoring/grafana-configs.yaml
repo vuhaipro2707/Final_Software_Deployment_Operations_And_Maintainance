@@ -95,32 +95,18 @@ data:
           }
         },
         {
-          "title": "MongoDB Health Status",
-          "type": "stat",
+          "title": "MongoDB Request Rate",
+          "type": "timeseries",
           "gridPos": { "h": 6, "w": 24, "x": 0, "y": 20 },
           "targets": [
-            { "expr": "mongodb_up", "refId": "A", "legendFormat": "Pod {{instance}}" }
+            { "expr": "sum(rate(mongodb_ss_opcounters[5m])) by (instance, type)", "refId": "A", "legendFormat": "{{instance}} - {{type}}" }
           ],
           "options": {
-            "textMode": "value_and_name",
-            "colorMode": "background",
-            "graphMode": "none",
-            "justifyMode": "center",
-            "orientation": "horizontal"
+            "legend": { "displayMode": "table", "placement": "right" }
           },
           "fieldConfig": {
             "defaults": {
-              "color": { "mode": "thresholds" },
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "green", "value": 1 }
-                ]
-              },
-              "mappings": [
-                { "type": "value", "options": { "0": { "text": "DOWN", "index": 0 }, "1": { "text": "ONLINE", "index": 1 } } }
-              ]
+              "unit": "reqps"
             }
           }
         }
@@ -134,7 +120,7 @@ data:
       "version": 2
     }
         {
-          "title": "HTTP Request Rate (Custom Metric)",
+          "title": "HTTP Request Rate",
           "type": "timeseries",
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
           "targets": [
@@ -161,6 +147,10 @@ data:
       url: http://prometheus-service.monitoring.svc.cluster.local/prometheus
       access: proxy
       isDefault: true
+    - name: Loki
+      type: loki
+      url: http://loki-service:3100
+      access: proxy
 ---
 apiVersion: v1
 kind: ConfigMap
