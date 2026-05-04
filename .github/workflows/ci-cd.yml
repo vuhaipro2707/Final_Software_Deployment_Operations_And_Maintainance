@@ -50,3 +50,43 @@ jobs:
 
       - name: Push Docker Image
         run: docker push ${{ secrets.DOCKER_HUB_USERNAME }}/final-project:${{ github.sha }}
+
+  cd-pipeline:
+    runs-on: ubuntu-latest
+    needs: ci-pipeline
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Check Kubeconfig and Connectivity
+        run: |
+          if [ -z "${{ secrets.KUBECONFIG }}" ]; then
+            echo "KUBECONFIG secret is missing. Skipping CD gracefully."
+            exit 0
+          fi
+          
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" > ~/.kube/config
+          
+          # Try to reach the server with a 10s timeout
+          if ! kubectl cluster-info --request-timeout=10s > /dev/null 2>&1; then
+            echo "Kubernetes server is unreachable (turned off). Skipping CD gracefully."
+            exit 0
+          fi
+
+      - name: Update Deployment Image
+        run: |
+          sed -i "s|image: .*final-project:.*|image: ${{ secrets.DOCKER_HUB_USERNAME }}/final-project:${{ github.sha }}|g" k8s/app-deployment.yaml
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/app-deployment.yaml
+
+      - name: Force Refresh Pods
+        run: |
+          kubectl rollout restart deployment/app-deployment
+
+      - name: Verify Deployment
+        run: |
+          kubectl rollout status deployment/app-deployment --timeout=120s
