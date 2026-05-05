@@ -6,7 +6,7 @@ const productRoutes = require('./routes/productRoutes');
 const dataSource = require('./services/dataSource');
 const uiRoutes = require('./routes/uiRoutes');
 const path = require('path');
-const fs = require('fs'); 
+const fs = require('fs');
 const client = require('prom-client');
 
 const app = express();
@@ -65,24 +65,24 @@ async function start() {
 
   // Khởi tạo trạng thái ban đầu
   const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/products_db';
-  
+
   // Hàm kiểm tra và kết nối MongoDB linh hoạt
   async function checkConnection() {
     try {
       if (mongoose.connection.readyState !== 1) { // 1 = connected
         console.log(`Checking MongoDB connection to: ${mongoUri.split('@').pop()}`);
         await mongoose.connect(mongoUri, {
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
+          // useNewUrlParser: true,
+          // useUnifiedTopology: true,
           serverSelectionTimeoutMS: 5000 // Tăng lên 5s cho ổn định
         });
-        
+
         console.log('--- SWITCHING TO MONGODB ---');
         await dataSource.init(true);
       }
     } catch (err) {
       console.log(`MongoDB Connection Failed: ${err.message}`);
-      if (dataSource.isMongo || !usingFirstCheckDone) {
+      if (dataSource.isMongo() || !usingFirstCheckDone) {
         console.log('--- USING IN-MEMORY ---');
         await dataSource.init(false);
       }
@@ -102,7 +102,8 @@ async function start() {
 
   app.listen(PORT, () => {
     console.log(`Server listening on port http://localhost:${PORT} — hostname: ${os.hostname()}`);
-    console.log(`Data source in use: ${dataSource.isMongo ? 'mongodb' : 'in-memory'}`);
+    // console.log(`Data source in use: ${dataSource.isMongo ? 'mongodb' : 'in-memory'}`);
+    console.log(`Data source in use: ${dataSource.isMongo() ? 'mongodb' : 'in-memory'}`);
   });
 }
 

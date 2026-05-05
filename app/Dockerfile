@@ -23,10 +23,19 @@ COPY --from=build /app/views ./views
 COPY --from=build /app/public ./public
 
 # Chỉ cài dependencies cho production (nhỏ gọn hơn)
-RUN npm ci --only=production
+# RUN npm ci --only=production
 
 # Tạo thư mục uploads và phân quyền
-RUN mkdir -p public/uploads && chown -R node:node /app
+# RUN mkdir -p public/uploads && chown -R node:node /app
+
+# Chỉ cài production dependencies, sau đó xóa npm/yarn khỏi runtime image để giảm attack surface
+RUN npm ci --omit=dev \
+    && npm cache clean --force \
+    && rm -rf /usr/local/lib/node_modules/npm \
+    && rm -rf /opt/yarn* \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+    && mkdir -p public/uploads \
+    && chown -R node:node /app
 
 # Chạy với user node (bảo mật hơn root)
 USER node
