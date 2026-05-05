@@ -41,8 +41,14 @@
           echo "admin.conf already updated"
           exit 0
         fi
-        sed -i '' 's|https://.*:6443|https://{{ ansible_host }}:6443|g' ./admin.conf
-        sed -i '' 's|certificate-authority-data:.*|insecure-skip-tls-verify: true|g' ./admin.conf
+        OS_TYPE=$(uname)
+        if [ "$OS_TYPE" == "Darwin" ]; then
+          sed -i '' 's|https://.*:6443|https://{{ ansible_host }}:6443|g' ./admin.conf
+          sed -i '' 's|certificate-authority-data:.*|insecure-skip-tls-verify: true|g' ./admin.conf
+        else
+          sed -i 's|https://.*:6443|https://{{ ansible_host }}:6443|g' ./admin.conf
+          sed -i 's|certificate-authority-data:.*|insecure-skip-tls-verify: true|g' ./admin.conf
+        fi
       args:
         executable: /bin/bash
       register: sed_output
