@@ -8,7 +8,18 @@ fi
 
 export KUBECONFIG=$PWD/ansible/admin.conf
 
-echo "Step 1: Installing Ingress Controller (HostNetwork mode)..."
+echo "Step 1: Installing Metrics Server (For HPA)..."
+if ! kubectl get deployment metrics-server -n kube-system >/dev/null 2>&1; then
+    kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+    # Patch to allow insecure TLS for local/lab clusters
+    kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op": "add", "path": "/spec/template/spec/containers/0/args/-", "value": "--kubelet-insecure-tls"}]'
+    echo "Waiting for Metrics Server..."
+    kubectl wait --for=condition=Available deployment/metrics-server -n kube-system --timeout=120s
+else
+    echo "Metrics Server already installed, skipping..."
+fi
+
+echo "Step 1.1: Installing Ingress Controller (HostNetwork mode)..."
 if ! kubectl get ns ingress-nginx >/dev/null 2>&1; then
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/baremetal/deploy.yaml
 
