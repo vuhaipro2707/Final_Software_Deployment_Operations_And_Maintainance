@@ -10,10 +10,18 @@
       hostname:
         name: "{{ inventory_hostname }}"
 
+    # - name: Fix apt mirrors (Switch any EC2 regional mirror to main archive to avoid 503 errors)
+    #   shell: sed -i -E 's|http://[a-z0-9-]+\.ec2\.archive\.ubuntu\.com|http://archive.ubuntu.com|g' /etc/apt/sources.list
+    #   changed_when: false
+
     - name: Update apt and install dependencies
       apt:
         update_cache: yes
         name: [apt-transport-https, ca-certificates, curl, gnupg, lsb-release]
+      register: apt_res
+      until: apt_res is success
+      retries: 5
+      delay: 10
 
     - name: Add Docker GPG key
       apt_key:
@@ -30,15 +38,12 @@
         name: containerd.io
         state: present
         update_cache: yes
+      register: cont_res
+      until: cont_res is success
+      retries: 5
+      delay: 10
 
     - name: Enable kernel modules for K8s (Permanent)
-      copy:
-        dest: /etc/modules-load.d/k8s.conf
-        content: |
-          overlay
-          br_netfilter
-
-    - name: Enable kernel modules for K8s (Permanent on Reboot)
       copy:
         dest: /etc/modules-load.d/k8s.conf
         content: |
@@ -60,15 +65,19 @@
           net.bridge.bridge-nf-call-iptables  = 1
           net.bridge.bridge-nf-call-ip6tables = 1
           net.ipv4.ip_forward                 = 1
+      register: sysctl_conf
 
     - name: Apply sysctl settings immediately
       command: sysctl --system
+      when: sysctl_conf.changed
+      register: sysctl_output
 
     - name: Check if containerd config is already optimized
       shell: grep "SystemdCgroup = true" /etc/containerd/config.toml
       register: cgroup_check
       failed_when: false
       changed_when: false
+      check_mode: no
 
     - name: Configure containerd for K8s
       shell: |
@@ -93,6 +102,10 @@
         name: [kubelet, kubeadm, kubectl]
         state: present
         update_cache: yes
+      register: k8s_res
+      until: k8s_res is success
+      retries: 5
+      delay: 10
 
     - name: Hold K8s tools version
       dpkg_selections:

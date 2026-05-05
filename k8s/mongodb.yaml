@@ -72,13 +72,22 @@ spec:
                 fi
               fi
             else
-              # Chỉ initiate nếu là node 0 VÀ không tìm thấy bất kỳ PRIMARY nào khác trong cụm
-              if [ "$POD_ID" = "0" ] && [ "$HAS_CONFIG" != "1" ]; then
+            # Chỉ initiate nếu là node 0 VÀ không tìm thấy bất kỳ PRIMARY nào khác trong cụm
+            if [ "$POD_ID" = "0" ] && [ "$HAS_CONFIG" != "1" ]; then
                 echo "No PRIMARY found in cluster and no local config. I am mongodb-0, initiating cluster..."
-                # Sử dụng DNS name ngay từ đầu thay vì localhost
-                mongosh --eval "rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongodb-0.mongodb-service:27017'}]})"
+                # Sử dụng vòng lặp retry để đợi DNS của Headless Service sẵn sàng
+                MAX_RETRIES=30
+                RETRY_COUNT=0
+                until mongosh --eval "rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'mongodb-0.mongodb-service:27017'}]})" || [ $RETRY_COUNT -eq $MAX_RETRIES ]; do
+                  echo "Wait for DNS/Network to be ready for rs.initiate()... ($RETRY_COUNT/$MAX_RETRIES)"
+                  sleep 5
+                  RETRY_COUNT=$((RETRY_COUNT+1))
+                done
                 
-                until mongosh --eval "db.isMaster().ismaster" | grep -q "true"; do sleep 2; done
+                until mongosh --eval "db.isMaster().ismaster" | grep -q "true"; do 
+                  echo "Waiting for me to become PRIMARY..."
+                  sleep 2 
+                done
                 
                 echo "Adding other members..."
                 mongosh --eval "rs.add('mongodb-1.mongodb-service:27017'); rs.add('mongodb-2.mongodb-service:27017');" || true
@@ -89,6 +98,7 @@ spec:
                   echo "Still waiting for PRIMARY to avoid split-brain..."
                 done
                 echo "PRIMARY found at $PRIMARY. Joining now..."
+                # Thử add bản thân vào PRIMARY (chỉ hiệu quả nếu PRIMARY đã lên)
                 mongosh --host "$PRIMARY" --eval "rs.add('$(hostname).mongodb-service:27017')" || true
               fi
             fi

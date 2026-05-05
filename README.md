@@ -28,6 +28,7 @@ brew install ansible            # For initializing Cluster
 brew install terraform          # For building AWS infrastructure
 brew install gettext            # For 'envsubst' command (processing variables in YAML)
 brew install awscli             # For AWS CLI configuration
+brew install httpd              # For 'ab' command (Apache Benchmark)
 ```
 
 ```bash
@@ -47,12 +48,6 @@ aws configure # Fill in Access Key, Secret Key, Region (e.g., us-east-1), output
    chmod +x generate_inventory.sh
    ./generate_inventory.sh
    cd ..
-   ```
-
-   Rollback command:
-   ```bash
-   chmod +x rollback_all_deployed.sh
-   ./rollback_all_deployed.sh
    ```   
 
 2. **Cluster Initialization (Ansible):**
@@ -78,13 +73,20 @@ aws configure # Fill in Access Key, Secret Key, Region (e.g., us-east-1), output
      --namespace kube-system
    ```
 
-4. **Deploy App Infrastructure & Monitoring:**
+4. **Copy Worker 1 IP from inventory file to your domain DNS:**
+   ```bash
+   # Get Worker 1 IP
+   WORKER_1_IP=$(grep 'worker-1' ansible/inventory.ini | awk '{print $2}' | cut -d'=' -f2)
+   echo "Worker 1 IP: $WORKER_1_IP"
+   ```
+
+5. **Deploy App Infrastructure & Monitoring:**
    ```bash
    chmod +x k8s.sh
    ./k8s.sh
    ```
 
-5. **Verify Status:**
+6. **Verify Status:**
    ```bash
    # Wait for all Certificates to be issued (Let's Encrypt)
    kubectl wait --for=condition=Ready certificate --all -A --timeout=300s
@@ -110,8 +112,27 @@ aws configure # Fill in Access Key, Secret Key, Region (e.g., us-east-1), output
    kubectl get nodes
    ```
 
-6. **Simulate Failures:**
+   ```bash
+   # Check HPA status
+   kubectl get hpa
+   ```
+
+7. **Stress Test & Auto-scaling (HPA):**
+   ```bash
+   # Perform stress test with Apache Benchmark (ab)
+   # -n: total requests, -c: concurrent requests
+   ab -n 10000 -c 100 https://{YOUR_DOMAIN}/
+   ```
+
+8. **Simulate Failures:**
    ```bash
    # Delete a MongoDB Pod to test self-healing
    kubectl delete pod mongodb-0
+   ```
+
+9. **Rollback:**
+   Rollback command:
+   ```bash
+   chmod +x rollback_all_deployed.sh
+   ./rollback_all_deployed.sh
    ```
