@@ -37,18 +37,27 @@
       delegate_to: localhost
       become: false
       shell: |
+        if grep -q "https://{{ ansible_host }}:6443" ./admin.conf && grep -q "insecure-skip-tls-verify: true" ./admin.conf; then
+          echo "admin.conf already updated"
+          exit 0
+        fi
         sed -i '' 's|https://.*:6443|https://{{ ansible_host }}:6443|g' ./admin.conf
         sed -i '' 's|certificate-authority-data:.*|insecure-skip-tls-verify: true|g' ./admin.conf
       args:
         executable: /bin/bash
+      register: sed_output
+      changed_when: "'already updated' not in sed_output.stdout"
 
     - name: Install Pod Network (Flannel)
       become: false
       command: kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+      register: flannel_apply
+      changed_when: "'created' in flannel_apply.stdout or 'configured' in flannel_apply.stdout"
 
     - name: Get join command from master
       command: kubeadm token create --print-join-command
       register: join_command_raw
+      changed_when: false
 
     - name: Set join command as a fact
       set_fact:
@@ -61,6 +70,8 @@
         --from-literal=S3_BUCKET_NAME={{ s3_bucket_name }} \
         --from-literal=AWS_REGION={{ aws_region }} \
         --save-config --dry-run=client -o yaml | kubectl apply -f -
+      register: secret_apply
+      changed_when: "'created' in secret_apply.stdout or 'configured' in secret_apply.stdout"
 
 - name: Join Workers to Cluster
   hosts: workers
