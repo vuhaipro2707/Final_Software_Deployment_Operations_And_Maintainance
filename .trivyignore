@@ -1,0 +1,4 @@
+# Trivy ignore file.
+# Add accepted CVE IDs here only when there is a documented risk acceptance reason.
+# Example:
+# CVE-2025-XXXX
