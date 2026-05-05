@@ -43,7 +43,7 @@ jobs:
         with:
           image-ref: 'docker.io/${{ vars.DOCKER_HUB_USERNAME }}/final-project:${{ github.sha }}'
           format: 'table'
-          exit-code: '0'
+          exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
       - name: Push Docker Image
