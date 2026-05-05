@@ -1,15 +1,18 @@
 # Stage 1: Build
-FROM node:18-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-# Install ALL dependencies (bao gồm cả devDeps để build nếu cần)
+# Install ALL dependencies
 RUN npm install 
 COPY . .
 
 # Stage 2: Production
-FROM node:18-alpine
+FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Update system packages to fix OS vulnerabilities
+RUN apk update && apk upgrade --no-cache
 
 # Chỉ copy những thứ cần thiết từ stage build
 COPY --from=build /app/package*.json ./
