@@ -1,6 +1,7 @@
 # Stage 1: Build
 FROM node:22-alpine AS build
 WORKDIR /app
+# Không dùng npm để nâng cấp npm (tránh lỗi MODULE_NOT_FOUND)
 COPY package*.json ./
 # Install ALL dependencies
 RUN npm install 
@@ -25,8 +26,8 @@ COPY --from=build /app/validators ./validators
 COPY --from=build /app/views ./views
 COPY --from=build /app/public ./public
 
-# Chỉ cài dependencies cho production (nhỏ gọn hơn)
-RUN npm ci --only=production
+# Cài production dependencies
+RUN npm ci --only=production && rm -rf /usr/local/lib/node_modules/npm
 
 # Tạo thư mục uploads và phân quyền
 RUN mkdir -p public/uploads && chown -R node:node /app

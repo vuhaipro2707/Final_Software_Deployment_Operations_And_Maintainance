@@ -36,7 +36,7 @@
     "glob": "10.5.0",
     "minimatch": "9.0.7",
     "tar": "7.5.11",
-    "picomatch": "4.0.4",
+    "picomatch": "3.0.2",
     "serialize-javascript": "^7.0.3"
   }
 }
