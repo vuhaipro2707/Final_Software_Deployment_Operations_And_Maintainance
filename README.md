@@ -91,6 +91,12 @@ aws configure # Fill in Access Key, Secret Key, Region (e.g., us-east-1), output
    # Wait for all Certificates to be issued (Let's Encrypt)
    kubectl wait --for=condition=Ready certificate --all -A --timeout=300s
    ```
+
+   ```bash
+   # TROUBLESHOOTING: If Certificate is not READY, check the reason:
+   kubectl get certificate -A
+   kubectl describe certificate myapp-tls-secret
+   ```
    
    ```bash
    # Check MongoDB ReplicaSet status

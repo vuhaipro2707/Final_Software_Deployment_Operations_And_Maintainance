@@ -22,3 +22,17 @@ spec:
             name: nodejs-service
             port:
               number: 80
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana-dns
+            port:
+              number: 80
+      - path: /prometheus
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-dns
+            port:
+              number: 9090
