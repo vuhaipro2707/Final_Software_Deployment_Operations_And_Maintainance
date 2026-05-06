@@ -35,4 +35,4 @@ spec:
           service:
             name: prometheus-dns
             port:
-              number: 9090
+              number: 80
