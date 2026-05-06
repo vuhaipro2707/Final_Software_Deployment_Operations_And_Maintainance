@@ -72,8 +72,6 @@ async function start() {
       if (mongoose.connection.readyState !== 1) { // 1 = connected
         console.log(`Checking MongoDB connection to: ${mongoUri.split('@').pop()}`);
         await mongoose.connect(mongoUri, {
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
           serverSelectionTimeoutMS: 5000 // Tăng lên 5s cho ổn định
         });
         
