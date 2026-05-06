@@ -1,11 +1,17 @@
-Build image command:
+# Final Software Deployment, Operations, and Maintenance Project
 
-```docker buildx build --platform linux/amd64 -t vuhaipro2707/final-app:v1.0.0 ./app```
+## Project Overview
+This project is a comprehensive web application system built on a Microservices architecture (Node.js & MongoDB), focusing on automating the Deployment, Operations, and Maintenance workflows. The system leverages modern technologies such as Infrastructure as Code (Terraform), Configuration Management (Ansible), and Container Orchestration (Kubernetes).
 
-Push image command:
+### Key Features
+- **Automated Infrastructure (IaC):** Provisioning AWS resources (EC2, S3, IAM) using Terraform.
+- **Cluster Configuration:** Automated installation and configuration of multi-node Kubernetes clusters using Ansible.
+- **Application Deployment:** Managing Node.js applications and MongoDB ReplicaSets on K8s.
+- **Monitoring & Observability:** Comprehensive monitoring system with Prometheus (Metrics), Grafana (Dashboards), and Loki (Logs).
+- **High Availability & Auto-scaling:** Configured HPA (Horizontal Pod Autoscaler) and self-healing mechanisms.
+- **Security:** Automated SSL/TLS certificate management via Cert-Manager and Let's Encrypt.
 
-```docker push vuhaipro2707/final-app:v1.0.0```
-
+## Project Structure
 ```bash
 /final-project
   ├── /app                 # Contains all source code, Dockerfile, docker-compose.dev.yml
@@ -13,6 +19,15 @@ Push image command:
   ├── /ansible             # Provisioning (Install Docker, K8s on server)
   └── /k8s                 # Orchestration (Deployment, Service, Storage, HPA Configuration)
 ```
+
+## Image Building and Pushing to Docker Hub For First Deployment
+Build image command:
+
+```docker buildx build --platform linux/amd64 -t vuhaipro2707/final-app:v1.0.0 ./app```
+
+Push image command:
+
+```docker push vuhaipro2707/final-app:v1.0.0```
 
 ## Tool Installation Guide on macOS (For Local Machine)
 
