@@ -100,12 +100,13 @@ for f in k8s/monitoring/*.yaml; do
     fi
 done
 
-# Step 3.5: Deploy Loki/Promtail (Logging Stack) - This is slow, so check if exists
+# Step 3.5: Deploy Loki/Promtail (Logging Stack)
 echo "Step 3.5: Deploying Logging Stack (Loki/Promtail)..."
-if ! kubectl get pods -n monitoring -l app=loki >/dev/null 2>&1; then
+if ! kubectl get deployment loki -n monitoring >/dev/null 2>&1; then
     kubectl apply -f k8s/monitoring/loki-stack.yaml
 else
-    echo "Loki-stack already exists, skipping..."
+    echo "Loki deployment already exists, checking for updates..."
+    kubectl apply -f k8s/monitoring/loki-stack.yaml
 fi
 
 echo "Step 4: Deploying MongoDB HA (3 Nodes)..."
