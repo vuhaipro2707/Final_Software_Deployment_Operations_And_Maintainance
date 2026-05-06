@@ -125,32 +125,26 @@ else
 fi
 kubectl apply -f k8s/hpa.yaml
 
-echo "Step 6: Configuring Ingress (Path-based Routing)..."
+echo "Step 6: Configuring Ingress..."
 if [ -f ".env" ]; then
     export $(grep -v '^#' .env | xargs)
-    # Check if Ingress already exists
-    if ! kubectl get ingress main-ingress >/dev/null 2>&1; then
-        echo "Creating Ingress resources..."
-        # Retry logic for Webhook readiness
-        for i in {1..5}; do
-            envsubst < k8s/ingress.yaml | kubectl apply -f - && \
-            envsubst < k8s/monitoring-ingress.yaml | kubectl apply -f - && break || \
-            (echo "Warning: Webhook not ready, retrying in 10s..." && sleep 10)
-        done
-    else
-        echo "Ingress resources already exist, skipping..."
-    fi
+    # Apply ExternalName Services (Cầu nối namespace)
+    kubectl apply -f k8s/monitoring-external-services.yaml
+    
+    # Apply Ingress tổng dùng chung domain
+    for i in {1..5}; do
+        envsubst < k8s/ingress.yaml | kubectl apply -f - && break || \
+        (echo "Warning: Webhook not ready, retrying in 10s..." && sleep 10)
+    done
 else
-    if ! kubectl get ingress main-ingress >/dev/null 2>&1; then
-        for i in {1..5}; do
-            kubectl apply -f k8s/ingress.yaml && \
-            kubectl apply -f k8s/monitoring-ingress.yaml && break || \
-            (echo "Warning: Webhook not ready, retrying in 10s..." && sleep 10)
-        done
-    else
-        echo "Ingress resources already exist, skipping..."
-    fi
+    kubectl apply -f k8s/monitoring-external-services.yaml
+    for i in {1..5}; do
+        kubectl apply -f k8s/ingress.yaml && break || \
+        (echo "Warning: Webhook not ready, retrying in 10s..." && sleep 10)
+    done
 fi
+
+echo "All components deployed successfully!"
 
 echo "COMPLETED! The system is being deployed."
 echo "------------------------------------------------"
