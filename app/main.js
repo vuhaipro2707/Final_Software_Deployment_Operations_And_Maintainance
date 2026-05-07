@@ -9,6 +9,8 @@ const path = require('path');
 const fs = require('fs'); 
 const client = require('prom-client');
 
+//const unusedVariable = 'I am not used';
+
 const app = express();
 
 // Prometheus setup
@@ -28,7 +30,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Custom app version for cd testing
-app.locals.appVersion = 'v1.0.03';
+app.locals.appVersion = 'v1.0.04';
 
 // view engine and static
 app.set('views', path.join(__dirname, 'views'));
