@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs'); 
 const client = require('prom-client');
 
+const unusedVariable = 'I am not used';
 const app = express();
 
 // Prometheus setup
